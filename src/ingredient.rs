@@ -120,6 +120,7 @@ impl Widget for &mut Ingredient {
         // TODO: Replace with a uniform size for all ingredients based on max description length
         let mut desired_size = total_extra + text.size();
         desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
+        desired_size.x = ui.available_width();
         let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
         response.widget_info(|| {
             WidgetInfo::selected(WidgetType::SelectableLabel, *selected, text.text())

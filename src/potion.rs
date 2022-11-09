@@ -1,6 +1,10 @@
 use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
 use eframe::egui::{self, Widget};
+use egui::{
+    text::LayoutJob, Color32, NumExt, Sense, TextFormat, TextStyle, WidgetInfo, WidgetText,
+    WidgetType,
+};
 use serde::{Deserialize, Serialize};
 
 use super::{Effect, Ingredient};
@@ -32,22 +36,88 @@ impl Display for Potion {
 
 impl Widget for &mut Potion {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        ui.group(|ui| {
-            ui.heading("Ingredients: ");
-            ui.horizontal(|ui| {
-                for ingredient in self.ingredients.iter().flatten() {
-                    ui.strong(&ingredient.borrow().name);
-                }
-            });
-            ui.heading("Effects: ");
-            ui.horizontal(|ui| {
-                for effect in self.effects.iter() {
-                    ui.strong(&effect.to_string());
-                }
-            });
-        })
-        .response
+        ui.set_width(ui.available_width());
+        let button_padding = ui.spacing().button_padding;
+        let total_extra = button_padding + button_padding;
+
+        let wrap_width = ui.available_width() - total_extra.x;
+        let mut text = LayoutJob::default();
+        text.append("Ingredients:\n", 0.0, heading_format());
+        // ui.heading("Ingredients: ");
+        text.append(
+            &format!(
+                "{}\n",
+                self.ingredients
+                    .iter()
+                    .flatten()
+                    .map(|ingredient| ingredient.borrow().name.clone()) // TODO: Remove Clone
+                    .collect::<Vec<_>>()
+                    .join("\t")
+            ),
+            0.0,
+            sub_format(),
+        );
+        text.append("Effects:\n", 0.0, heading_format());
+        text.append(
+            &format!(
+                "{}\n",
+                self.effects
+                    .iter()
+                    .map(|effect| effect.to_string())
+                    .collect::<Vec<_>>()
+                    .join("\t")
+            ),
+            0.0,
+            sub_format(),
+        );
+        let text = WidgetText::from(text);
+        let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
+
+        let mut desired_size = total_extra + text.size();
+        desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
+        desired_size.x = ui.available_width();
+        let (rect, response) = ui.allocate_at_least(desired_size, Sense::click());
+        response
+            .widget_info(|| WidgetInfo::selected(WidgetType::SelectableLabel, false, text.text()));
+
+        if ui.is_rect_visible(response.rect) {
+            let text_pos = ui
+                .layout()
+                .align_size_within_rect(text.size(), rect.shrink2(button_padding))
+                .min;
+
+            let visuals = ui.style().interact_selectable(&response, false);
+
+            if response.hovered() || response.has_focus() {
+                let rect = rect.expand(visuals.expansion);
+
+                ui.painter().rect(
+                    rect,
+                    visuals.rounding,
+                    Color32::DARK_GRAY, // visuals.bg_fill
+                    visuals.bg_stroke,
+                );
+            }
+
+            text.paint_with_visuals(ui.painter(), text_pos, &visuals);
+        }
+
+        response
     }
+}
+
+fn heading_format() -> TextFormat {
+    TextFormat::simple(
+        egui::FontId::new(24.0, eframe::epaint::FontFamily::Proportional),
+        egui::Color32::WHITE,
+    )
+}
+
+fn sub_format() -> TextFormat {
+    TextFormat::simple(
+        egui::FontId::new(18.0, eframe::epaint::FontFamily::Proportional),
+        egui::Color32::LIGHT_GRAY,
+    )
 }
 
 impl Potion {

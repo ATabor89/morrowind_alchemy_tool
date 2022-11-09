@@ -61,7 +61,6 @@ fn main() {
         web_options,
         Box::new(|cc| {
             let app = App::new(cc);
-            log::info!("{:?}", app);
             Box::new(app)
         }),
     )
@@ -73,6 +72,7 @@ struct App {
     ingredients: Vec<Rc<RefCell<Ingredient>>>,
     selected_ingredients: Vec<bool>,
     desired_effects: [Option<Effect>; 4],
+    previous_effects: [Option<Effect>; 4],
     potential_ingredients: Vec<Rc<RefCell<Ingredient>>>,
     filtered_ingredients: Vec<Rc<RefCell<Ingredient>>>,
     potential_potions: Vec<Potion>,
@@ -94,12 +94,11 @@ impl App {
         //     return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         // }
 
-        // TODO: Move ingredient generation here
-
         App {
             ingredients: { create_ingredients() },
             selected_ingredients: Vec::new(),
             desired_effects: [None, None, None, None],
+            previous_effects: [None, None, None, None],
             potential_ingredients: Vec::new(),
             filtered_ingredients: Vec::new(),
             potential_potions: Vec::new(),
@@ -201,13 +200,13 @@ impl eframe::App for App {
             self.create_effect_dropdown(ui, "Desired Effect 2", 1);
             self.create_effect_dropdown(ui, "Desired Effect 3", 2);
             self.create_effect_dropdown(ui, "Desired Effect 4", 3);
-            if ui.button("Find Ingredients").clicked() {
-                self.potential_ingredients =
-                    get_potential_ingredients(&self.desired_effects, &self.ingredients);
+            if !self.desired_effects.iter().zip(self.previous_effects.iter()).all(|(current_effect, previous_effect)| current_effect == previous_effect) {
+                // Some effect changed, reset values
+                self.potential_ingredients = get_potential_ingredients(&self.desired_effects, &self.ingredients);
                 self.selected_ingredients = vec![false; self.potential_ingredients.len()];
                 self.potential_potions = Vec::new();
-            };
-            // TODO: Add 'Clear Effects' Button next to 'Find Ingredients'
+                self.previous_effects = self.desired_effects;
+            }
             ui.separator();
             if !self.potential_ingredients.is_empty() {
                 ui.heading("Click ingredients to select for use in final potions, or use the buttons below to select all or none.");
@@ -255,6 +254,7 @@ impl eframe::App for App {
                     });
                     ui.add_space(10.0);
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::LEFT), |ui| {
+                        // TODO: Add feedback if no potions are generated
                         if ui.button("Generate Potions").clicked() {
                             self.filtered_ingredients = self
                                 .potential_ingredients
@@ -269,67 +269,68 @@ impl eframe::App for App {
                                 })
                                 .cloned()
                                 .collect();
-                                self.potential_potions = create_potential_potions(&self.desired_effects, &self.filtered_ingredients).iter().filter(|potential_potion| {
-                                        if self.allow_extra_effects {
-                                            true
-                                        } else {
-                                             potential_potion.effects.iter().all(|&effect| self.desired_effects.contains(&Some(effect)))
-                                        }
-                                    })
-                                    .sorted_by(|potion_a, potion_b| {
-                                        potion_a.ingredients.len().cmp(&potion_b.ingredients.len())
-                                    })
-                                    .cloned()
-                                    .collect();
-    
-                                    let two_ingredient_potions: Vec<&Potion> = self.potential_potions.iter().filter(|potion| potion.ingredients.iter().flatten().count() == 2).collect();
-                                    let mut three_ingredient_potions: Vec<&Potion> = self.potential_potions.iter().filter(|potion| potion.ingredients.iter().flatten().count() == 3).collect();
-                                    three_ingredient_potions.retain(|three_ingredient_potion| {
-                                        // If we find any exact match, it's an old potion
-                                        for two_ingredient_potion in two_ingredient_potions.iter() {
-                                            if three_ingredient_potion.effects.iter().all(|effect| {
-                                                two_ingredient_potion.effects.contains(effect)
-                                            }) {
-                                                return false;
-                                            }
-                                        }
-    
+                            self.potential_potions = create_potential_potions(&self.desired_effects, &self.filtered_ingredients).iter().filter(|potential_potion| {
+                                    if self.allow_extra_effects {
                                         true
-                                    });
-                                    let mut four_ingredient_potions: Vec<&Potion> = self.potential_potions.iter().filter(|potion| potion.ingredients.iter().flatten().count() == 4).collect();
-                                    four_ingredient_potions.retain(|four_ingredient_potion| {
-                                        for two_ingredient_potion in two_ingredient_potions.iter() {
-                                            if four_ingredient_potion.effects.iter().all(|effect| {
-                                                two_ingredient_potion.effects.contains(effect)
-                                            }) {
-                                                return false;
-                                            }
-                                        }
-    
-                                        true
-                                    });
-                                    four_ingredient_potions.retain(|four_ingredient_potion| {
-                                        for three_ingredient_potion in three_ingredient_potions.iter() {
-                                            if four_ingredient_potion.effects.iter().all(|effect| {
-                                                three_ingredient_potion.effects.contains(effect)
-                                            }) {
-                                                return false;
-                                            }
-                                        }
-    
-                                        true
-                                    });
-                                    self.potential_potions = {
-                                        let mut t: Vec<Potion> = Vec::new();
-                                        t.append(&mut two_ingredient_potions.iter().cloned().cloned().collect());
-                                        t.append(&mut three_ingredient_potions.iter().cloned().cloned().collect());
-                                        t.append(&mut four_ingredient_potions.iter().cloned().cloned().collect());
-    
-                                        t
+                                    } else {
+                                            potential_potion.effects.iter().all(|&effect| self.desired_effects.contains(&Some(effect)))
                                     }
+                                })
+                                .sorted_by(|potion_a, potion_b| {
+                                    potion_a.ingredients.len().cmp(&potion_b.ingredients.len())
+                                })
+                                .cloned()
+                                .collect();
+
+                                let two_ingredient_potions: Vec<&Potion> = self.potential_potions.iter().filter(|potion| potion.ingredients.iter().flatten().count() == 2).collect();
+                                let mut three_ingredient_potions: Vec<&Potion> = self.potential_potions.iter().filter(|potion| potion.ingredients.iter().flatten().count() == 3).collect();
+                                three_ingredient_potions.retain(|three_ingredient_potion| {
+                                    // If we find any exact match, it's an old potion
+                                    for two_ingredient_potion in two_ingredient_potions.iter() {
+                                        if three_ingredient_potion.effects.iter().all(|effect| {
+                                            two_ingredient_potion.effects.contains(effect)
+                                        }) {
+                                            return false;
+                                        }
+                                    }
+
+                                    true
+                                });
+                                let mut four_ingredient_potions: Vec<&Potion> = self.potential_potions.iter().filter(|potion| potion.ingredients.iter().flatten().count() == 4).collect();
+                                four_ingredient_potions.retain(|four_ingredient_potion| {
+                                    for two_ingredient_potion in two_ingredient_potions.iter() {
+                                        if four_ingredient_potion.effects.iter().all(|effect| {
+                                            two_ingredient_potion.effects.contains(effect)
+                                        }) {
+                                            return false;
+                                        }
+                                    }
+
+                                    true
+                                });
+                                four_ingredient_potions.retain(|four_ingredient_potion| {
+                                    for three_ingredient_potion in three_ingredient_potions.iter() {
+                                        if four_ingredient_potion.effects.iter().all(|effect| {
+                                            three_ingredient_potion.effects.contains(effect)
+                                        }) {
+                                            return false;
+                                        }
+                                    }
+
+                                    true
+                                });
+                                self.potential_potions = {
+                                    let mut t: Vec<Potion> = Vec::new();
+                                    t.append(&mut two_ingredient_potions.iter().cloned().cloned().collect());
+                                    t.append(&mut three_ingredient_potions.iter().cloned().cloned().collect());
+                                    t.append(&mut four_ingredient_potions.iter().cloned().cloned().collect());
+
+                                    t
+                                }
                         };
                         ui.checkbox(&mut self.allow_extra_effects, "Allow Extra Effects");
                     });
+                    // TODO: Add feedback if no potions are generated
                     if !self.potential_potions.is_empty() {
                         ui.group(|ui| {
                             egui::ScrollArea::vertical()
@@ -454,104 +455,3 @@ fn create_potential_potions(
 
     potions
 }
-
-// -------------------- Old Code -----------------------------
-/*
-
-// let mut resulting_effects: HashSet<Effect> = HashSet::new();
-
-        // self.ingredients
-        //     .iter()
-        //     .flatten()
-        //     .tuple_combinations()
-        //     .for_each(|(ingredient_1, ingredient_2)| {
-        //         let results: Vec<_> = ingredient_1
-        //             .effects
-        //             .iter()
-        //             .flatten()
-        //             .collect::<HashSet<_>>()
-        //             .intersection(
-        //                 &ingredient_2
-        //                     .effects
-        //                     .iter()
-        //                     .flatten()
-        //                     .collect::<HashSet<_>>(),
-        //             )
-        //             .cloned()
-        //             .collect();
-        //         if !results.is_empty() {
-        //             for result in results.iter() {
-        //                 resulting_effects.insert(**result);
-        //             }
-        //         }
-        //     });
-
-        // resulting_effects.iter().cloned().collect()
-
-Old code used to find potential potions
-This code works but is much less readable...
-than simply creating a Potion from the potential ingredients and checking the resulting effects against desired effects
-
-// For combinations of 2, 3, and 4 ingredients
-        // for i in 2..=4 {
-        //     let potential_potions: Vec<Vec<&Ingredient>> = potential_ingredients
-        //         .iter() // iterate over the ingredients
-        //         .cloned() // Clone to remove the reference
-        //         .combinations(i) // Create combinations of ingredients
-        //         .filter(|ingredients| {
-        //             // filter ingredients
-
-        //             // Create a map of desired effects to booleans to determine if they were found
-        //             let mut desired_map: HashMap<&Effect, bool> = desired_effects
-        //                 .iter()
-        //                 .map(|&effect| (effect, false))
-        //                 .collect();
-
-        //             // iterate over desired_effects looking for any match
-        //             desired_effects.iter().any(|desired_effect| {
-        //                 // for each pair of ingredients in our ingredients
-        //                 for (ingredient_1, ingredient_2) in ingredients.iter().tuple_combinations()
-        //                 {
-        //                     // flatten the effects list and collect into a hash set
-        //                     if ingredient_1
-        //                         .effects
-        //                         .iter()
-        //                         .flatten()
-        //                         .collect::<HashSet<_>>()
-        //                         // intersect the hash set with a hash set of the second ingredient's effects
-        //                         .intersection(
-        //                             &ingredient_2
-        //                                 .effects
-        //                                 .iter()
-        //                                 .flatten()
-        //                                 .collect::<HashSet<_>>(),
-        //                         )
-        //                         // if the intersection contains the desired effect, this ingredient will show up in the final potion
-        //                         .contains(&desired_effect)
-        //                     {
-        //                         // set the map to true, showing that we found the desired effect
-        //                         desired_map.insert(desired_effect, true);
-        //                     }
-        //                 }
-        //                 // If we found all desired effects, this is a valid potion
-        //                 desired_map.iter().all(|(_effect, found)| *found)
-        //             })
-        //         }) // end filter
-        //         .collect(); // Collect all of the ingredients for valid potions: Vec<Vec<&Ingredient>>
-
-        //     for potential_potion in potential_potions.iter() {
-        //         let mut potential_ingredients: Vec<Option<Ingredient>> = potential_potion
-        //             .iter()
-        //             .map(|&ing| Some(ing.clone()))
-        //             .collect();
-        //         while potential_ingredients.len() < 4 {
-        //             potential_ingredients.resize_with(4, || None);
-        //         }
-        //         potions.push(Potion {
-        //             ingredients: potential_ingredients
-        //                 .try_into()
-        //                 .unwrap_or([None, None, None, None]),
-        //         });
-        //     }
-        // }
-*/
