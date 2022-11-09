@@ -42,7 +42,7 @@ impl Widget for &mut Potion {
 
         let wrap_width = ui.available_width() - total_extra.x;
         let mut text = LayoutJob::default();
-        text.append("Ingredients:\n", 0.0, heading_format());
+        text.append("Ingredients\n", 0.0, heading_format());
         // ui.heading("Ingredients: ");
         text.append(
             &format!(
@@ -57,10 +57,10 @@ impl Widget for &mut Potion {
             0.0,
             sub_format(),
         );
-        text.append("Effects:\n", 0.0, heading_format());
+        text.append("Effects\n", 0.0, heading_format());
         text.append(
             &format!(
-                "{}\n",
+                "{}",
                 self.effects
                     .iter()
                     .map(|effect| effect.to_string())
@@ -107,10 +107,12 @@ impl Widget for &mut Potion {
 }
 
 fn heading_format() -> TextFormat {
-    TextFormat::simple(
+    let mut heading_format = TextFormat::simple(
         egui::FontId::new(24.0, eframe::epaint::FontFamily::Proportional),
         egui::Color32::WHITE,
-    )
+    );
+    heading_format.underline = egui::Stroke::new(0.25, Color32::WHITE);
+    heading_format
 }
 
 fn sub_format() -> TextFormat {
