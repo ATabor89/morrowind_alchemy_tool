@@ -200,10 +200,21 @@ impl eframe::App for App {
             self.create_effect_dropdown(ui, "Desired Effect 2", 1);
             self.create_effect_dropdown(ui, "Desired Effect 3", 2);
             self.create_effect_dropdown(ui, "Desired Effect 4", 3);
+            if ui.checkbox(&mut self.allow_extra_effects, "Allow Extra Effects In Potion Generation").changed() && self.allow_extra_effects {
+                // We have changed this modifier so we should generate potions
+                self.generate_potions();
+            }
             if !self.desired_effects.iter().zip(self.previous_effects.iter()).all(|(current_effect, previous_effect)| current_effect == previous_effect) {
                 // Some effect changed, reset values
                 self.potential_ingredients = get_potential_ingredients(&self.desired_effects, &self.ingredients);
                 self.selected_ingredients = vec![false; self.potential_ingredients.len()];
+                // Unselect ingredients
+                for ingredient in self.potential_ingredients.iter_mut() {
+                    match ingredient.try_borrow_mut() {
+                        Ok(mut ingredient) => ingredient.selected = false,
+                        Err(_) => continue, // Unable to borrow ingredient so continuing is better than crashing
+                    }
+                }
                 self.potential_potions = Vec::new();
                 self.previous_effects = self.desired_effects;
             }
@@ -213,15 +224,25 @@ impl eframe::App for App {
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
                     if ui.button("Select All").clicked() {
                         for ingredient in self.potential_ingredients.iter_mut() {
-                            ingredient.borrow_mut().selected = true;
+                            match ingredient.try_borrow_mut() {
+                                Ok(mut ingredient) => ingredient.selected = true,
+                                Err(_) => continue, // Unable to borrow ingredient so continuing is better than crashing
+                            }
                         }
                         self.selected_ingredients = vec![true; self.potential_ingredients.len()];
+                        // We have changed the selected ingredients, so let's generate potions
+                        self.generate_potions();
                     };
                     if ui.button("Select None").clicked() {
                         for ingredient in self.potential_ingredients.iter_mut() {
-                            ingredient.borrow_mut().selected = false;
+                            match ingredient.try_borrow_mut() {
+                                Ok(mut ingredient) => ingredient.selected = false,
+                                Err(_) => continue, // Unable to borrow ingredient so continuing is better than crashing
+                            }
                         }
                         self.selected_ingredients = vec![false; self.potential_ingredients.len()];
+                        // We have changed the selected ingredients, so let's generate potions
+                        self.generate_potions();
                     };
                 });
                 ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
@@ -232,106 +253,50 @@ impl eframe::App for App {
                         .max_height(if self.potential_potions.is_empty() {
                             ui.available_height() - 120.0
                         } else {
-                            ui.available_height() / 2.0 })
+                            ui.available_height() / 3.0 })
                         .id_source("ingredient_scroll_area")
                         .show(ui, |ui| {
                             let num_ingredients = self.potential_ingredients.len();
+                            let mut ingredient_selection_changed = false;
                             for (index, ingredient) in self.potential_ingredients.iter_mut().enumerate() {
-                                let mut ingredient = ingredient.borrow_mut();
+                                let Ok(mut ingredient) = ingredient.try_borrow_mut() else {
+                                    // Unable to borrow ingredient so continue to the next one
+                                    // It's better than crashing
+                                    continue;  
+                                };
                                 if ingredient.ui(ui)
                                     .clicked()
                                 {
                                     self.selected_ingredients[index] =
                                         !self.selected_ingredients[index];
                                     ingredient.selected = !ingredient.selected;
+
+                                    ingredient_selection_changed = true;
                                 }
     
                                 if index != num_ingredients - 1 {
                                     ui.separator();
                                 }
                             }
+
+                            if ingredient_selection_changed {
+                                // We have changed the selected ingredients, so let's generate potions
+                                self.generate_potions();
+                            }
                         });
                     });
                     ui.add_space(10.0);
-                    ui.with_layout(egui::Layout::left_to_right(egui::Align::LEFT), |ui| {
-                        // TODO: Add feedback if no potions are generated
-                        if ui.button("Generate Potions").clicked() {
-                            self.filtered_ingredients = self
-                                .potential_ingredients
-                                .iter()
-                                .zip(self.selected_ingredients.iter())
-                                .filter_map(|(potential_ingredient, selected)| {
-                                    if *selected {
-                                        Some(potential_ingredient)
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .cloned()
-                                .collect();
-                            self.potential_potions = create_potential_potions(&self.desired_effects, &self.filtered_ingredients).iter().filter(|potential_potion| {
-                                    if self.allow_extra_effects {
-                                        true
-                                    } else {
-                                            potential_potion.effects.iter().all(|&effect| self.desired_effects.contains(&Some(effect)))
-                                    }
-                                })
-                                .sorted_by(|potion_a, potion_b| {
-                                    potion_a.ingredients.len().cmp(&potion_b.ingredients.len())
-                                })
-                                .cloned()
-                                .collect();
-
-                                let two_ingredient_potions: Vec<&Potion> = self.potential_potions.iter().filter(|potion| potion.ingredients.iter().flatten().count() == 2).collect();
-                                let mut three_ingredient_potions: Vec<&Potion> = self.potential_potions.iter().filter(|potion| potion.ingredients.iter().flatten().count() == 3).collect();
-                                three_ingredient_potions.retain(|three_ingredient_potion| {
-                                    // If we find any exact match, it's an old potion
-                                    for two_ingredient_potion in two_ingredient_potions.iter() {
-                                        if three_ingredient_potion.effects.iter().all(|effect| {
-                                            two_ingredient_potion.effects.contains(effect)
-                                        }) {
-                                            return false;
-                                        }
-                                    }
-
-                                    true
+                    if self.potential_potions.is_empty() {
+                        ui.group(|ui| {
+                            egui::ScrollArea::vertical()
+                                .id_source("no_potion_area")
+                                .max_height(ui.available_height() - 10.0)
+                                .show(ui, |ui| {
+                                    ui.heading("No Potions Found - Add More Ingredients, Change Desired Effects, or Allow Extra Effects");
                                 });
-                                let mut four_ingredient_potions: Vec<&Potion> = self.potential_potions.iter().filter(|potion| potion.ingredients.iter().flatten().count() == 4).collect();
-                                four_ingredient_potions.retain(|four_ingredient_potion| {
-                                    for two_ingredient_potion in two_ingredient_potions.iter() {
-                                        if four_ingredient_potion.effects.iter().all(|effect| {
-                                            two_ingredient_potion.effects.contains(effect)
-                                        }) {
-                                            return false;
-                                        }
-                                    }
-
-                                    true
-                                });
-                                four_ingredient_potions.retain(|four_ingredient_potion| {
-                                    for three_ingredient_potion in three_ingredient_potions.iter() {
-                                        if four_ingredient_potion.effects.iter().all(|effect| {
-                                            three_ingredient_potion.effects.contains(effect)
-                                        }) {
-                                            return false;
-                                        }
-                                    }
-
-                                    true
-                                });
-                                self.potential_potions = {
-                                    let mut t: Vec<Potion> = Vec::new();
-                                    t.append(&mut two_ingredient_potions.iter().cloned().cloned().collect());
-                                    t.append(&mut three_ingredient_potions.iter().cloned().cloned().collect());
-                                    t.append(&mut four_ingredient_potions.iter().cloned().cloned().collect());
-
-                                    t
-                                }
-                        };
-                        ui.checkbox(&mut self.allow_extra_effects, "Allow Extra Effects");
-                    });
-                    // TODO: Add feedback if no potions are generated
-                    if !self.potential_potions.is_empty() {
+                        });
+                    }
+                    else {
                         ui.group(|ui| {
                             egui::ScrollArea::vertical()
                                 .id_source("potion_scroll_area")
@@ -362,6 +327,81 @@ impl eframe::App for App {
                 }
             });
         });
+    }
+}
+
+impl App {
+    fn generate_potions(&mut self) {
+        self.filtered_ingredients = self
+            .potential_ingredients
+            .iter()
+            .zip(self.selected_ingredients.iter())
+            .filter_map(|(potential_ingredient, selected)| {
+                if *selected {
+                    Some(potential_ingredient)
+                } else {
+                    None
+                }
+            })
+            .cloned()
+            .collect();
+        self.potential_potions = create_potential_potions(&self.desired_effects, &self.filtered_ingredients).iter().filter(|potential_potion| {
+                if self.allow_extra_effects {
+                    true
+                } else {
+                        potential_potion.effects.iter().all(|&effect| self.desired_effects.contains(&Some(effect)))
+                }
+            })
+            .sorted_by(|potion_a, potion_b| {
+                potion_a.ingredients.len().cmp(&potion_b.ingredients.len())
+            })
+            .cloned()
+            .collect();
+        let two_ingredient_potions: Vec<&Potion> = self.potential_potions.iter().filter(|potion| potion.ingredients.iter().flatten().count() == 2).collect();
+        let mut three_ingredient_potions: Vec<&Potion> = self.potential_potions.iter().filter(|potion| potion.ingredients.iter().flatten().count() == 3).collect();
+        three_ingredient_potions.retain(|three_ingredient_potion| {
+                // If we find any exact match, it's an old potion
+                for two_ingredient_potion in two_ingredient_potions.iter() {
+                    if three_ingredient_potion.effects.iter().all(|effect| {
+                        two_ingredient_potion.effects.contains(effect)
+                    }) {
+                        return false;
+                    }
+                }
+
+                true
+            });
+        let mut four_ingredient_potions: Vec<&Potion> = self.potential_potions.iter().filter(|potion| potion.ingredients.iter().flatten().count() == 4).collect();
+        four_ingredient_potions.retain(|four_ingredient_potion| {
+                for two_ingredient_potion in two_ingredient_potions.iter() {
+                    if four_ingredient_potion.effects.iter().all(|effect| {
+                        two_ingredient_potion.effects.contains(effect)
+                    }) {
+                        return false;
+                    }
+                }
+
+                true
+            });
+        four_ingredient_potions.retain(|four_ingredient_potion| {
+                for three_ingredient_potion in three_ingredient_potions.iter() {
+                    if four_ingredient_potion.effects.iter().all(|effect| {
+                        three_ingredient_potion.effects.contains(effect)
+                    }) {
+                        return false;
+                    }
+                }
+
+                true
+            });
+        self.potential_potions = {
+                let mut t: Vec<Potion> = Vec::new();
+                t.append(&mut two_ingredient_potions.iter().cloned().cloned().collect());
+                t.append(&mut three_ingredient_potions.iter().cloned().cloned().collect());
+                t.append(&mut four_ingredient_potions.iter().cloned().cloned().collect());
+
+                t
+            }
     }
 }
 
