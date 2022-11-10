@@ -70,7 +70,6 @@ fn main() {
 #[derive(Debug, Serialize, Deserialize)]
 struct App {
     ingredients: Vec<Rc<RefCell<Ingredient>>>,
-    selected_ingredients: Vec<bool>,
     desired_effects: [Option<Effect>; 4],
     previous_effects: [Option<Effect>; 4],
     potential_ingredients: Vec<Rc<RefCell<Ingredient>>>,
@@ -96,7 +95,6 @@ impl App {
 
         App {
             ingredients: { create_ingredients() },
-            selected_ingredients: Vec::new(),
             desired_effects: [None, None, None, None],
             previous_effects: [None, None, None, None],
             potential_ingredients: Vec::new(),
@@ -200,14 +198,13 @@ impl eframe::App for App {
             self.create_effect_dropdown(ui, "Desired Effect 2", 1);
             self.create_effect_dropdown(ui, "Desired Effect 3", 2);
             self.create_effect_dropdown(ui, "Desired Effect 4", 3);
-            if ui.checkbox(&mut self.allow_extra_effects, "Allow Extra Effects In Potion Generation").changed() && self.allow_extra_effects {
+            if ui.checkbox(&mut self.allow_extra_effects, "Allow Extra Effects In Potion Generation").changed() {
                 // We have changed this modifier so we should generate potions
                 self.generate_potions();
             }
             if !self.desired_effects.iter().zip(self.previous_effects.iter()).all(|(current_effect, previous_effect)| current_effect == previous_effect) {
                 // Some effect changed, reset values
                 self.potential_ingredients = get_potential_ingredients(&self.desired_effects, &self.ingredients);
-                self.selected_ingredients = vec![false; self.potential_ingredients.len()];
                 // Unselect ingredients
                 for ingredient in self.potential_ingredients.iter_mut() {
                     match ingredient.try_borrow_mut() {
@@ -229,7 +226,6 @@ impl eframe::App for App {
                                 Err(_) => continue, // Unable to borrow ingredient so continuing is better than crashing
                             }
                         }
-                        self.selected_ingredients = vec![true; self.potential_ingredients.len()];
                         // We have changed the selected ingredients, so let's generate potions
                         self.generate_potions();
                     };
@@ -240,11 +236,13 @@ impl eframe::App for App {
                                 Err(_) => continue, // Unable to borrow ingredient so continuing is better than crashing
                             }
                         }
-                        self.selected_ingredients = vec![false; self.potential_ingredients.len()];
                         // We have changed the selected ingredients, so let's generate potions
                         self.generate_potions();
                     };
                 });
+                ui.separator();
+                ui.heading("Potential Ingredients");
+                ui.separator();
                 ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
                 // ui.vertical(|ui| {
                     ui.group(|ui| {
@@ -267,8 +265,6 @@ impl eframe::App for App {
                                 if ingredient.ui(ui)
                                     .clicked()
                                 {
-                                    self.selected_ingredients[index] =
-                                        !self.selected_ingredients[index];
                                     ingredient.selected = !ingredient.selected;
 
                                     ingredient_selection_changed = true;
@@ -286,6 +282,9 @@ impl eframe::App for App {
                         });
                     });
                     ui.add_space(10.0);
+                    ui.separator();
+                    ui.heading("Generated Potions");
+                    ui.separator();
                     if self.potential_potions.is_empty() {
                         ui.group(|ui| {
                             egui::ScrollArea::vertical()
@@ -335,13 +334,13 @@ impl App {
         self.filtered_ingredients = self
             .potential_ingredients
             .iter()
-            .zip(self.selected_ingredients.iter())
-            .filter_map(|(potential_ingredient, selected)| {
-                if *selected {
-                    Some(potential_ingredient)
-                } else {
-                    None
-                }
+            .filter(|potential_ingredient| {
+                let Ok(potential_ingredient) = potential_ingredient.try_borrow() else {
+                    // Unable to borrow ingredient so just return false
+                    // It's better than crashing
+                    return false;  
+                };
+                potential_ingredient.selected
             })
             .cloned()
             .collect();

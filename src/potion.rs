@@ -50,23 +50,24 @@ impl Widget for &mut Potion {
                 self.ingredients
                     .iter()
                     .flatten()
-                    .map(|ingredient| ingredient.borrow().name.clone()) // TODO: Remove Clone
+                    .map(|ingredient| match ingredient.try_borrow() {
+                        Ok(ingredient) => ingredient.name.clone(), // TODO: Can we avoid cloning here?
+                        Err(_) => String::new(),
+                    })
                     .collect::<Vec<_>>()
                     .join("\t")
             ),
             0.0,
             sub_format(),
         );
-        text.append("Effects\n", 0.0, heading_format());
+        text.append("Potion Effects\n", 0.0, heading_format());
         text.append(
-            &format!(
-                "{}",
-                self.effects
-                    .iter()
-                    .map(|effect| effect.to_string())
-                    .collect::<Vec<_>>()
-                    .join("\t")
-            ),
+            &self
+                .effects
+                .iter()
+                .map(|effect| effect.to_string())
+                .collect::<Vec<_>>()
+                .join("\t"),
             0.0,
             sub_format(),
         );
@@ -167,7 +168,11 @@ impl Potion {
     fn effects(ingredients: &[Option<Rc<RefCell<Ingredient>>>]) -> Vec<Effect> {
         let mut effects_map: HashMap<Effect, u8> = HashMap::new();
         for ingredient in ingredients.iter().flatten() {
-            for effect in ingredient.borrow().effects.iter().flatten() {
+            let Ok(ingredient) = ingredient.try_borrow() else {
+                // Unable to borrow so it's better to continue than crash
+                continue;
+            };
+            for effect in ingredient.effects.iter().flatten() {
                 if let Some(times_found) = effects_map.get_mut(effect) {
                     *times_found += 1;
                 } else {
