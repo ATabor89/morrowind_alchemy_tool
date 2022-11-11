@@ -126,7 +126,16 @@ fn create_ingredients() -> Vec<Rc<RefCell<Ingredient>>> {
         .map(|ingredient| Rc::new(RefCell::new(ingredient)))
         .collect();
     ingredients.sort_by(|ingredient_1, ingredient_2| {
-        ingredient_1.borrow().name.cmp(&ingredient_2.borrow().name)
+        // Although this never crashed with the simpler .borrow() calls, let's remove the chance
+        if let Ok(ingredient_1) = ingredient_1.try_borrow() {
+            if let Ok(ingredient_2) = ingredient_2.try_borrow() {
+                ingredient_1.name.cmp(&ingredient_2.name)
+            } else {
+                ingredient_1.name.cmp(&"".to_string())
+            }
+        } else {
+            "".cmp("")
+        }
     });
 
     ingredients
@@ -167,7 +176,16 @@ fn create_ingredients() -> Vec<Rc<RefCell<Ingredient>>> {
         .map(|ingredient| Rc::new(RefCell::new(ingredient)))
         .collect();
     ingredients.sort_by(|ingredient_1, ingredient_2| {
-        ingredient_1.borrow().name.cmp(&ingredient_2.borrow().name)
+        // Although this never crashed with the simpler .borrow() calls, let's remove the chance
+        if let Ok(ingredient_1) = ingredient_1.try_borrow() {
+            if let Ok(ingredient_2) = ingredient_2.try_borrow() {
+                ingredient_1.name.cmp(&ingredient_2.name)
+            } else {
+                ingredient_1.name.cmp(&"".to_string())
+            }
+        } else {
+            "".cmp("")
+        }
     });
 
     ingredients
@@ -212,7 +230,7 @@ impl eframe::App for App {
                         Err(_) => continue, // Unable to borrow ingredient so continuing is better than crashing
                     }
                 }
-                self.potential_potions = Vec::new();
+                self.potential_potions.clear();
                 self.previous_effects = self.desired_effects;
             }
             ui.separator();
@@ -241,78 +259,17 @@ impl eframe::App for App {
                     };
                 });
                 ui.separator();
-                ui.heading("Potential Ingredients");
-                ui.separator();
-                ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
-                // ui.vertical(|ui| {
-                    ui.group(|ui| {
-                        egui::ScrollArea::vertical()
-                        // .max_height(400.0)
-                        .max_height(if self.potential_potions.is_empty() {
-                            ui.available_height() - 120.0
-                        } else {
-                            ui.available_height() / 3.0 })
-                        .id_source("ingredient_scroll_area")
-                        .show(ui, |ui| {
-                            let num_ingredients = self.potential_ingredients.len();
-                            let mut ingredient_selection_changed = false;
-                            for (index, ingredient) in self.potential_ingredients.iter_mut().enumerate() {
-                                let Ok(mut ingredient) = ingredient.try_borrow_mut() else {
-                                    // Unable to borrow ingredient so continue to the next one
-                                    // It's better than crashing
-                                    continue;  
-                                };
-                                if ingredient.ui(ui)
-                                    .clicked()
-                                {
-                                    ingredient.selected = !ingredient.selected;
-
-                                    ingredient_selection_changed = true;
-                                }
-    
-                                if index != num_ingredients - 1 {
-                                    ui.separator();
-                                }
-                            }
-
-                            if ingredient_selection_changed {
-                                // We have changed the selected ingredients, so let's generate potions
-                                self.generate_potions();
-                            }
-                        });
-                    });
-                    ui.add_space(10.0);
-                    ui.separator();
-                    ui.heading("Generated Potions");
-                    ui.separator();
-                    if self.potential_potions.is_empty() {
-                        ui.group(|ui| {
-                            egui::ScrollArea::vertical()
-                                .id_source("no_potion_area")
-                                .max_height(ui.available_height() - 10.0)
-                                .show(ui, |ui| {
-                                    ui.heading("No Potions Found - Add More Ingredients, Change Desired Effects, or Allow Extra Effects");
-                                });
-                        });
-                    }
-                    else {
-                        ui.group(|ui| {
-                            egui::ScrollArea::vertical()
-                                .id_source("potion_scroll_area")
-                                .max_height(ui.available_height() - 10.0)
-                                .show(ui, |ui| {
-                                    let num_potions = self.potential_potions.len();
-                                    for (index, potion) in self.potential_potions.iter_mut().enumerate() {
-                                        potion.ui(ui);
-                                        if index != num_potions - 1 {
-                                            ui.separator();
-                                        }
-                                    }
-                                });
-                        });
-                    }
-                });    
             }
+            ui.heading("Potential Ingredients");
+            ui.separator();
+            ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+                self.create_ingredient_area(ui);
+                ui.add_space(10.0);
+                ui.separator();
+                ui.heading("Generated Potions");
+                ui.separator();
+                self.create_potion_area(ui);
+            });    
         });
 
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
@@ -320,7 +277,7 @@ impl eframe::App for App {
                 let taco_button = ui.button("Buy Me A Taco");
                 if taco_button.clicked() || taco_button.middle_clicked() {
                     ui.ctx().output().open_url = Some(egui::output::OpenUrl {
-                        url: "https://ko-fi.com/shoggothunknown".to_string(),
+                        url: "https://ko-fi.com/atabor89".to_string(),
                         new_tab: true,
                     });
                 }
@@ -330,6 +287,87 @@ impl eframe::App for App {
 }
 
 impl App {
+    fn create_ingredient_area(&mut self, ui: &mut egui::Ui) {
+        if self.potential_ingredients.is_empty() {
+            ui.group(|ui| {
+                egui::ScrollArea::vertical()
+                    .id_source("no_ingredient_area")
+                    .max_height(if self.potential_potions.is_empty() {
+                        ui.available_height() - 120.0
+                    } else {
+                        ui.available_height() / 3.0 })
+                    .show(ui, |ui| {
+                        ui.heading("No Ingredients Found - Select One or More Desired Effects");
+                    });
+            });
+        } else {
+            ui.group(|ui| {
+                egui::ScrollArea::vertical()
+                .max_height(if self.potential_potions.is_empty() {
+                    ui.available_height() - 120.0
+                } else {
+                    ui.available_height() / 3.0 })
+                .id_source("ingredient_scroll_area")
+                .show(ui, |ui| {
+                    let num_ingredients = self.potential_ingredients.len();
+                    let mut ingredient_selection_changed = false;
+                    for (index, ingredient) in self.potential_ingredients.iter_mut().enumerate() {
+                        let Ok(mut ingredient) = ingredient.try_borrow_mut() else {
+                            // Unable to borrow ingredient so continue to the next one
+                            // It's better than crashing
+                            continue;  
+                        };
+                        if ingredient.ui(ui)
+                            .clicked()
+                        {
+                            ingredient.selected = !ingredient.selected;
+    
+                            ingredient_selection_changed = true;
+                        }
+        
+                        if index != num_ingredients - 1 {
+                            ui.separator();
+                        }
+                    }
+    
+                    if ingredient_selection_changed {
+                        // We have changed the selected ingredients, so let's generate potions
+                        self.generate_potions();
+                    }
+                });
+            });
+        }
+    }
+
+    fn create_potion_area(&mut self, ui: &mut egui::Ui) {
+        if self.potential_potions.is_empty() {
+            ui.group(|ui| {
+                egui::ScrollArea::vertical()
+                    .id_source("no_potion_area")
+                    .max_height(ui.available_height() - 10.0)
+                    .show(ui, |ui| {
+                        ui.heading("No Potions Found - Add More Ingredients, Change Desired Effects, or Allow Extra Effects");
+                    });
+            });
+        }
+        else {
+            ui.group(|ui| {
+                egui::ScrollArea::vertical()
+                    .id_source("potion_scroll_area")
+                    .max_height(ui.available_height() - 10.0)
+                    .show(ui, |ui| {
+                        let num_potions = self.potential_potions.len();
+                        for (index, potion) in self.potential_potions.iter_mut().enumerate() {
+                            potion.ui(ui);
+                            if index != num_potions - 1 {
+                                ui.separator();
+                            }
+                        }
+                    });
+            });
+        }
+    }
+
     fn generate_potions(&mut self) {
         self.filtered_ingredients = self
             .potential_ingredients
@@ -402,9 +440,7 @@ impl App {
                 t
             }
     }
-}
 
-impl App {
     fn create_effect_dropdown(&mut self, ui: &mut egui::Ui, label: &str, effect_index: usize) {
         ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
             ui.heading(format!("{}: ", label));
@@ -439,8 +475,11 @@ fn get_potential_ingredients(
         .iter()
         .filter(|ingredient| {
             // filter the ingredients iterator
-            ingredient // for the current ingredient
-                .borrow()
+            let Ok(ingredient) = ingredient.try_borrow() else {
+                // Skip ingredient by returning false if we are unable to borrow
+                return false;
+            };
+            ingredient
                 .effects // get the effects array
                 .iter() // and grab an iterator to that
                 .flatten() // flatten to get a new iterator, removing any None variant, and ripping out the Effect from Option<Effect>
