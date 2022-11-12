@@ -76,18 +76,15 @@ impl Widget for &mut Ingredient {
         let mut text = LayoutJob::default();
         let mut name_format = TextFormat::simple(
             egui::FontId::new(24.0, eframe::epaint::FontFamily::Proportional),
-            Color32::WHITE,
+            ui.style().noninteractive().text_color(),
         );
         name_format.underline = egui::Stroke::new(0.25, Color32::WHITE);
-        text.append(&format!("{}\n", name), 0.0, name_format);
-        text.append(
-            &format!("{}\n", description,),
-            0.0,
-            TextFormat::simple(
-                egui::FontId::new(18.0, eframe::epaint::FontFamily::Proportional),
-                Color32::WHITE,
-            ),
+        let format = TextFormat::simple(
+            egui::FontId::new(18.0, eframe::epaint::FontFamily::Proportional),
+            ui.style().noninteractive().text_color(),
         );
+        text.append(&format!("{}\n", name), 0.0, name_format);
+        text.append(&format!("{}\n", description,), 0.0, format.clone());
         text.append(
             &format!(
                 "{}\n",
@@ -98,10 +95,7 @@ impl Widget for &mut Ingredient {
                     .join("\t")
             ),
             0.0,
-            TextFormat::simple(
-                egui::FontId::new(18.0, eframe::epaint::FontFamily::Proportional),
-                Color32::WHITE,
-            ),
+            format.clone(),
         );
         text.append(
             &format!(
@@ -109,15 +103,11 @@ impl Widget for &mut Ingredient {
                 weight, value, harvest_chance
             ),
             0.0,
-            TextFormat::simple(
-                egui::FontId::new(18.0, eframe::epaint::FontFamily::Proportional),
-                Color32::WHITE,
-            ),
+            format,
         );
         let text = WidgetText::from(text);
         let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
 
-        // TODO: Replace with a uniform size for all ingredients based on max description length
         let mut desired_size = total_extra + text.size();
         desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
         desired_size.x = ui.available_width();
@@ -137,12 +127,8 @@ impl Widget for &mut Ingredient {
             if *selected || response.hovered() || response.has_focus() {
                 let rect = rect.expand(visuals.expansion);
 
-                ui.painter().rect(
-                    rect,
-                    visuals.rounding,
-                    Color32::DARK_GRAY, // visuals.bg_fill
-                    visuals.bg_stroke,
-                );
+                ui.painter()
+                    .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
             }
 
             text.paint_with_visuals(ui.painter(), text_pos, &visuals);

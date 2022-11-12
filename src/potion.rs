@@ -42,8 +42,16 @@ impl Widget for &mut Potion {
 
         let wrap_width = ui.available_width() - total_extra.x;
         let mut text = LayoutJob::default();
-        text.append("Ingredients\n", 0.0, heading_format());
-        // ui.heading("Ingredients: ");
+        let mut heading_format = TextFormat::simple(
+            egui::FontId::new(24.0, eframe::epaint::FontFamily::Proportional),
+            ui.style().noninteractive().text_color(),
+        );
+        heading_format.underline = egui::Stroke::new(0.25, Color32::WHITE);
+        let format = TextFormat::simple(
+            egui::FontId::new(18.0, eframe::epaint::FontFamily::Proportional),
+            ui.style().noninteractive().text_color(),
+        );
+        text.append("Ingredients\n", 0.0, heading_format.clone());
         text.append(
             &format!(
                 "{}\n",
@@ -58,9 +66,9 @@ impl Widget for &mut Potion {
                     .join("\t")
             ),
             0.0,
-            sub_format(),
+            format.clone(),
         );
-        text.append("Potion Effects\n", 0.0, heading_format());
+        text.append("Potion Effects\n", 0.0, heading_format);
         text.append(
             &self
                 .effects
@@ -69,7 +77,7 @@ impl Widget for &mut Potion {
                 .collect::<Vec<_>>()
                 .join("\t"),
             0.0,
-            sub_format(),
+            format,
         );
         let text = WidgetText::from(text);
         let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
@@ -89,38 +97,11 @@ impl Widget for &mut Potion {
 
             let visuals = ui.style().interact_selectable(&response, false);
 
-            if response.hovered() || response.has_focus() {
-                let rect = rect.expand(visuals.expansion);
-
-                ui.painter().rect(
-                    rect,
-                    visuals.rounding,
-                    Color32::DARK_GRAY, // visuals.bg_fill
-                    visuals.bg_stroke,
-                );
-            }
-
             text.paint_with_visuals(ui.painter(), text_pos, &visuals);
         }
 
         response
     }
-}
-
-fn heading_format() -> TextFormat {
-    let mut heading_format = TextFormat::simple(
-        egui::FontId::new(24.0, eframe::epaint::FontFamily::Proportional),
-        egui::Color32::WHITE,
-    );
-    heading_format.underline = egui::Stroke::new(0.25, Color32::WHITE);
-    heading_format
-}
-
-fn sub_format() -> TextFormat {
-    TextFormat::simple(
-        egui::FontId::new(18.0, eframe::epaint::FontFamily::Proportional),
-        egui::Color32::LIGHT_GRAY,
-    )
 }
 
 impl Potion {

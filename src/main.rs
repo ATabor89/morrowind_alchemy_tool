@@ -208,7 +208,13 @@ impl eframe::App for App {
                     }
                 });
             });
-            ui.heading("Morrowind Alchemy Tool");
+            ui.horizontal(|ui| {
+                ui.heading("Morrowind Alchemy Tool");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
+                    egui::widgets::global_dark_light_mode_buttons(ui);
+                });
+            });
+
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -271,7 +277,7 @@ impl eframe::App for App {
                 self.create_potion_area(ui);
             });    
         });
-
+        
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                 let taco_button = ui.button("Buy Me A Taco");
@@ -291,25 +297,25 @@ impl App {
         if self.potential_ingredients.is_empty() {
             ui.group(|ui| {
                 egui::ScrollArea::vertical()
-                    .id_source("no_ingredient_area")
-                    .max_height(if self.potential_potions.is_empty() {
-                        ui.available_height() - 120.0
-                    } else {
-                        ui.available_height() / 3.0 })
-                    .show(ui, |ui| {
-                        ui.heading("No Ingredients Found - Select One or More Desired Effects");
-                    });
-            });
-        } else {
-            ui.group(|ui| {
-                egui::ScrollArea::vertical()
+                .id_source("no_ingredient_area")
                 .max_height(if self.potential_potions.is_empty() {
                     ui.available_height() - 120.0
                 } else {
                     ui.available_height() / 3.0 })
-                .id_source("ingredient_scroll_area")
                 .show(ui, |ui| {
-                    let num_ingredients = self.potential_ingredients.len();
+                    ui.heading("No Ingredients Found - Select One or More Desired Effects");
+                });
+                });
+            } else {
+                ui.group(|ui| {
+                    egui::ScrollArea::vertical()
+                    .max_height(if self.potential_potions.is_empty() {
+                        ui.available_height() - 120.0
+                    } else {
+                        ui.available_height() / 3.0 })
+                        .id_source("ingredient_scroll_area")
+                        .show(ui, |ui| {
+                        let num_ingredients = self.potential_ingredients.len();
                     let mut ingredient_selection_changed = false;
                     for (index, ingredient) in self.potential_ingredients.iter_mut().enumerate() {
                         let Ok(mut ingredient) = ingredient.try_borrow_mut() else {
