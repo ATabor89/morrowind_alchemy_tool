@@ -10,13 +10,14 @@ use std::{fs::File, io::BufReader};
 mod tests;
 
 mod ingredient;
+use egui::{style::{Widgets, Selection, WidgetVisuals}, Color32, Rounding, Stroke, Visuals};
 use ingredient::*;
 mod potion;
 use itertools::Itertools;
 use potion::*;
 use serde::{Deserialize, Serialize};
 
-use eframe::egui::{self, Widget};
+use eframe::{egui::{self, Widget}, epaint::Shadow};
 
 #[cfg(not(target_arch = "wasm32"))]
 use eframe::epaint::Vec2;
@@ -76,6 +77,7 @@ struct App {
     filtered_ingredients: Vec<Rc<RefCell<Ingredient>>>,
     potential_potions: Vec<Potion>,
     allow_extra_effects: bool,
+    visuals: Visuals,
 }
 
 impl App {
@@ -84,7 +86,7 @@ impl App {
         // Restore app state using cc.storage (requires the "persistence" feature).
         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
         // for e.g. egui::PaintCallback.
-        cc.egui_ctx.set_visuals(egui::Visuals::dark());
+        cc.egui_ctx.set_visuals(Self::dark());
 
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
@@ -101,6 +103,7 @@ impl App {
             filtered_ingredients: Vec::new(),
             potential_potions: Vec::new(),
             allow_extra_effects: false,
+            visuals: Self::dark(),
         }
     }
 }
@@ -211,7 +214,9 @@ impl eframe::App for App {
             ui.horizontal(|ui| {
                 ui.heading("Morrowind Alchemy Tool");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
-                    egui::widgets::global_dark_light_mode_buttons(ui);
+                    // custom_global_dark_light_mode_buttons(ui);
+                    self.custom_global_dark_light_mode_buttons(ui);
+                    // egui::widgets::global_dark_light_mode_buttons(ui);
                 });
             });
 
@@ -293,6 +298,137 @@ impl eframe::App for App {
 }
 
 impl App {
+    fn custom_global_dark_light_mode_buttons(&mut self, ui: &mut egui::Ui) {
+        let visuals = &mut ui.ctx().style().visuals.clone();
+        ui.horizontal(|ui| {
+            ui.selectable_value(visuals, Self::light(), "☀ Light");
+            ui.selectable_value(visuals, Self::dark(), "🌙 Dark");
+        });
+        ui.ctx().set_visuals(visuals.clone());
+    }
+
+    /// Default dark theme.
+    pub fn dark() -> egui::Visuals {
+        egui::Visuals {
+            dark_mode: true,
+            override_text_color: None,
+            widgets: Widgets {
+                noninteractive: WidgetVisuals {
+                    bg_fill: Color32::from_gray(27), // window background
+                    bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines, windows outlines
+                    // fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
+                    fg_stroke: Stroke::new(1.0, Color32::WHITE), // normal text color
+                    rounding: Rounding::same(2.0),
+                    expansion: 0.0,
+                },
+                inactive: WidgetVisuals {
+                    bg_fill: Color32::from_gray(60), // button background
+                    bg_stroke: Default::default(),
+                    fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
+                    rounding: Rounding::same(2.0),
+                    expansion: 0.0,
+                },
+                hovered: WidgetVisuals {
+                    bg_fill: Color32::from_gray(70),
+                    bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
+                    fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
+                    rounding: Rounding::same(3.0),
+                    expansion: 1.0,
+                },
+                active: WidgetVisuals {
+                    bg_fill: Color32::from_gray(55),
+                    bg_stroke: Stroke::new(1.0, Color32::WHITE),
+                    fg_stroke: Stroke::new(2.0, Color32::WHITE),
+                    rounding: Rounding::same(2.0),
+                    expansion: 1.0,
+                },
+                open: WidgetVisuals {
+                    bg_fill: Color32::from_gray(27),
+                    bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
+                    fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
+                    rounding: Rounding::same(2.0),
+                    expansion: 0.0,
+                },
+            },
+            selection: Selection {
+                bg_fill: Color32::DARK_GRAY, //Color32::from_rgb(0, 92, 128)
+                stroke: Stroke::new(1.0, Color32::from_rgb(255, 255, 255)), // Original color: Color32::from_rgb(192, 222, 255)
+            },
+            hyperlink_color: Color32::from_rgb(90, 170, 255),
+            faint_bg_color: Color32::from_gray(35),
+            extreme_bg_color: Color32::from_gray(10), // e.g. TextEdit background
+            code_bg_color: Color32::from_gray(64),
+            warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
+            error_fg_color: Color32::from_rgb(255, 0, 0),  // red
+            window_rounding: Rounding::same(6.0),
+            window_shadow: Shadow::big_dark(),
+            popup_shadow: Shadow::small_dark(),
+            resize_corner_size: 12.0,
+            text_cursor_width: 2.0,
+            text_cursor_preview: false,
+            clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
+            button_frame: true,
+            collapsing_header_frame: false,
+        }
+    }
+
+    /// Default light theme.
+    pub fn light() -> egui::Visuals {
+        egui::Visuals {
+            dark_mode: false,
+            widgets: Widgets {
+                noninteractive: WidgetVisuals {
+                    bg_fill: Color32::from_gray(248), // window background - should be distinct from TextEdit background
+                    bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines, windows outlines
+                    fg_stroke: Stroke::new(1.0, Color32::BLACK),  // normal text color; original color: Color32::from_gray(80)
+                    rounding: Rounding::same(2.0),
+                    expansion: 0.0,
+                },
+                inactive: WidgetVisuals {
+                    bg_fill: Color32::from_gray(230), // button background
+                    bg_stroke: Default::default(),
+                    fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
+                    rounding: Rounding::same(2.0),
+                    expansion: 0.0,
+                },
+                hovered: WidgetVisuals {
+                    bg_fill: Color32::from_gray(220),
+                    bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
+                    fg_stroke: Stroke::new(1.5, Color32::BLACK),
+                    rounding: Rounding::same(3.0),
+                    expansion: 1.0,
+                },
+                active: WidgetVisuals {
+                    bg_fill: Color32::from_gray(165),
+                    bg_stroke: Stroke::new(1.0, Color32::BLACK),
+                    fg_stroke: Stroke::new(2.0, Color32::BLACK),
+                    rounding: Rounding::same(2.0),
+                    expansion: 1.0,
+                },
+                open: WidgetVisuals {
+                    bg_fill: Color32::from_gray(220),
+                    bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
+                    fg_stroke: Stroke::new(1.0, Color32::BLACK),
+                    rounding: Rounding::same(2.0),
+                    expansion: 0.0,
+                },
+            },
+            selection: Selection {
+                bg_fill: Color32::from_rgb(144, 209, 255),
+                stroke: Stroke::new(1.0, Color32::from_rgb(0, 83, 125)),
+            },
+            hyperlink_color: Color32::from_rgb(0, 155, 255),
+            faint_bg_color: Color32::from_gray(242),
+            extreme_bg_color: Color32::from_gray(255), // e.g. TextEdit background
+            code_bg_color: Color32::from_gray(230),
+            warn_fg_color: Color32::from_rgb(255, 0, 0), // red also, beecause orange doesn't look great because of https://github.com/emilk/egui/issues/1455
+            error_fg_color: Color32::from_rgb(255, 0, 0), // red
+            window_shadow: Shadow::big_light(),
+            popup_shadow: Shadow::small_light(),
+            ..Self::dark()
+        }
+    }
+
     fn create_ingredient_area(&mut self, ui: &mut egui::Ui) {
         if self.potential_ingredients.is_empty() {
             ui.group(|ui| {
