@@ -6,7 +6,7 @@ You can run the tool from your browser at the following link:
 https://atabor89.github.io/morrowind_alchemy_tool/
 
 ## Introduction
-This is a helper tool designed to help the user create potions in the game THe Elder Scrolls III: Morrowind.
+This is a helper tool designed to help the user create potions in the game The Elder Scrolls III: Morrowind.
 
 ## Details
 In Morrowind, the player can create any number of potions by combining up to four ingredients. An ingredient can contain up to four effects and any effects that match between at least two ingredients will appear in the resulting potion.
