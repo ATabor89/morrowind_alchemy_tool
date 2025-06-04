@@ -647,7 +647,7 @@ fn create_potential_potions(
     // For combinations of 2, 3, and 4 ingredients
     for i in 2..=4 {
         let mut potential_potions: Vec<Potion> = potential_ingredients
-            .iter() // iterate over the ingredients // Clone to remove the reference
+            .iter() // iterate over the ingredients
             .combinations(i) // Create combinations of ingredients
             .filter_map(|ingredient_combo| {
                 // create a new potion from the ingredient_combo
