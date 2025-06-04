@@ -1,4 +1,5 @@
 use super::*;
+use strum::IntoEnumIterator;
 
 // use lazy_static::lazy_static;
 // lazy_static! {
@@ -183,6 +184,15 @@ mod two_ingredient_tests {
 
         assert_eq!(potion.effects.len(), 0);
     }
+}
+
+#[test]
+fn test_effects_list_is_sorted() {
+    let list = Effect::effects_list();
+    assert_eq!(list.len(), Effect::iter().count());
+    let mut sorted_list = list.clone();
+    sorted_list.sort_by_key(|effect| effect.to_string());
+    assert_eq!(sorted_list, list);
 }
 
 mod three_ingredient_tests {
