@@ -532,7 +532,12 @@ impl App {
                 }
             })
             .sorted_by(|potion_a, potion_b| {
-                potion_a.ingredients.len().cmp(&potion_b.ingredients.len())
+                potion_a
+                    .ingredients
+                    .iter()
+                    .flatten()
+                    .count()
+                    .cmp(&potion_b.ingredients.iter().flatten().count())
             })
             .cloned()
             .collect();
