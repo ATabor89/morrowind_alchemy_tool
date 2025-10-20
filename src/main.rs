@@ -37,7 +37,6 @@ fn main() {
         initial_window_size: Some(Vec2::new(1920.0, 1080.0)),
         ..Default::default()
     };
-    // native_options.initial_window_size = Some(Vec2::new(1920.0, 1080.0));
     eframe::run_native(
         "Morrowind Alchemy Tool",
         native_options,
@@ -88,13 +87,6 @@ impl App {
         // for e.g. egui::PaintCallback.
         cc.egui_ctx.set_visuals(Self::dark());
 
-        // Load previous app state (if any).
-        // Note that you must enable the `persistence` feature for this to work.
-        // TODO: Resolve this storage after figuring out WASM hosting issue
-        // if let Some(storage) = cc.storage {
-        //     return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-        // }
-
         App {
             ingredients: { create_ingredients() },
             desired_effects: [None, None, None, None],
@@ -123,25 +115,13 @@ fn create_ingredients() -> Vec<Rc<RefCell<Ingredient>>> {
     ingredients.append(&mut morrowind_tribunal_ingredients);
     ingredients.append(&mut morrowind_bloodmoon_ingredients);
 
-    let mut ingredients: Vec<Rc<RefCell<Ingredient>>> = ingredients
+    let ingredients: Vec<Rc<RefCell<Ingredient>>> = ingredients
         .iter()
         .cloned()
         .map(|ingredient| Rc::new(RefCell::new(ingredient)))
         .collect();
-    ingredients.sort_by(|ingredient_1, ingredient_2| {
-        // Although this never crashed with the simpler .borrow() calls, let's remove the chance
-        if let Ok(ingredient_1) = ingredient_1.try_borrow() {
-            if let Ok(ingredient_2) = ingredient_2.try_borrow() {
-                ingredient_1.name.cmp(&ingredient_2.name)
-            } else {
-                ingredient_1.name.cmp(&"".to_string())
-            }
-        } else {
-            "".cmp("")
-        }
-    });
 
-    ingredients
+    sort_ingredients(ingredients)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -173,24 +153,24 @@ fn create_ingredients() -> Vec<Rc<RefCell<Ingredient>>> {
         ingredients.append(&mut ingredient_list);
     }
 
-    let mut ingredients: Vec<Rc<RefCell<Ingredient>>> = ingredients
+    let ingredients: Vec<Rc<RefCell<Ingredient>>> = ingredients
         .iter()
         .cloned()
         .map(|ingredient| Rc::new(RefCell::new(ingredient)))
         .collect();
+
+    sort_ingredients(ingredients)
+}
+
+fn sort_ingredients(mut ingredients: Vec<Rc<RefCell<Ingredient>>>) -> Vec<Rc<RefCell<Ingredient>>> {
     ingredients.sort_by(|ingredient_1, ingredient_2| {
-        // Although this never crashed with the simpler .borrow() calls, let's remove the chance
-        if let Ok(ingredient_1) = ingredient_1.try_borrow() {
-            if let Ok(ingredient_2) = ingredient_2.try_borrow() {
-                ingredient_1.name.cmp(&ingredient_2.name)
-            } else {
-                ingredient_1.name.cmp(&"".to_string())
-            }
-        } else {
-            "".cmp("")
+        match (ingredient_1.try_borrow(), ingredient_2.try_borrow()) {
+            (Ok(ing1), Ok(ing2)) => ing1.name.cmp(&ing2.name),
+            (Ok(ing1), Err(_)) => ing1.name.cmp(""),
+            (Err(_), Ok(ing2)) => "".cmp(&ing2.name),
+            (Err(_), Err(_)) => std::cmp::Ordering::Equal,
         }
     });
-
     ingredients
 }
 
@@ -214,9 +194,7 @@ impl eframe::App for App {
             ui.horizontal(|ui| {
                 ui.heading("Morrowind Alchemy Tool");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
-                    // custom_global_dark_light_mode_buttons(ui);
                     self.custom_global_dark_light_mode_buttons(ui);
-                    // egui::widgets::global_dark_light_mode_buttons(ui);
                 });
             });
 

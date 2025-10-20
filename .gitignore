@@ -1,1 +1,36 @@
+# Rust build artifacts
 /target
+/dist
+
+# Cargo.lock should be committed for binaries/applications
+# but can be ignored for libraries
+# Cargo.lock
+
+# Generated documentation
+/doc
+
+# Trunk build artifacts
+.trunk
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS generated files
+Thumbs.db
+Desktop.ini
+
+# Debug files
+*.pdb
+
+# Test coverage
+*.profraw
+*.profdata
+
+# Backup files
+*.bak
+*.tmp

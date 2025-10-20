@@ -1,28 +1,6 @@
 use super::*;
 use strum::IntoEnumIterator;
 
-// use lazy_static::lazy_static;
-// lazy_static! {
-//     static ref INGREDIENTS: Vec<Ingredient> = {
-//         let config_file =
-//             File::open("config.yaml").expect("Unable to open config file: config.yaml");
-//         let config: Config = serde_yaml::from_reader(BufReader::new(config_file))
-//             .expect("Unable to deserialize config file");
-
-//         let mut ingredients = Vec::new();
-
-//         for ingredient_list in config.ingredient_lists {
-//             let ingredient_list =
-//                 File::open(ingredient_list).expect("Unable to open ingredient list");
-//             let mut ingredient_list: Vec<Ingredient> =
-//                 serde_yaml::from_reader(BufReader::new(ingredient_list))
-//                     .expect("Unable to deserialize ingredient list");
-//             ingredients.append(&mut ingredient_list);
-//         }
-//         ingredients
-//     };
-// }
-
 mod two_ingredient_tests {
     use super::*;
 

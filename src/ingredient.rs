@@ -40,24 +40,6 @@ impl Ingredient {
 }
 
 impl Widget for &mut Ingredient {
-    // fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-    //     ui.group(|ui| {
-    //         ui.heading(&self.name);
-    //         ui.strong(&self.description);
-    //         ui.strong(format!(
-    //             "Weight: {}\tValue: {}\tHarvest Chance: {}",
-    //             self.weight, self.value, self.harvest_chance
-    //         ));
-    //         ui.strong("Effects: ");
-    //         ui.horizontal(|ui| {
-    //             for effect in self.effects.iter().flatten() {
-    //                 ui.strong(&effect.to_string());
-    //             }
-    //         });
-    //     })
-    //     .response
-    // }
-
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         let Ingredient {
             name,
@@ -139,19 +121,14 @@ impl Widget for &mut Ingredient {
 }
 
 #[derive(PartialEq, Debug, Clone, Copy, Serialize, Deserialize, Hash, Eq, EnumIter)]
-
 pub enum Effect {
-    // Chameleon,
     CureBlightDisease,
     CureCommonDisease,
-    // CureDisease,
-    // CureParalysis,
     CureParalyzation,
     CurePoison,
     DetectAnimal,
     DetectEnchantment,
     DetectKey,
-    // DetectLife,
     Dispel,
     Feather,
     FireShield,
@@ -176,10 +153,7 @@ pub enum Effect {
     NightEye,
     Recall,
     Reflect,
-    // ReflectDamage,
-    // ReflectSpell,
     ResistCommonDisease,
-    // ResistDisease,
     ResistFire,
     ResistFrost,
     ResistMagicka,
@@ -197,8 +171,6 @@ pub enum Effect {
     RestoreHealth,
     RestoreMagicka,
     RestoreFatigue,
-    // Shield,
-    // ShockShield,
     SpellAbsorption,
     SwiftSwim,
     Telekinesis,
@@ -206,14 +178,7 @@ pub enum Effect {
     WaterWalking,
     Blind,
     Burden,
-    // DamageStrength,
     DamageIntelligence,
-    // DamageWillpower,
-    // DamageAgility,
-    // DamageSpeed,
-    // DamageEndurance,
-    // DamagePersonality,
-    // DamageLuck,
     DamageHealth,
     DamageMagicka,
     DamageFatigue,
@@ -229,16 +194,12 @@ pub enum Effect {
     DrainHealth,
     DrainMagicka,
     DrainFatigue,
-    // FireDamage,
     FrostDamage,
     Paralyze,
     Poison,
-    // ShockDamage,
-    // Silence,
     Vampirism,
     WeaknessToFire,
     WeaknessToPoison,
-    // ModdedEffect(String),
 }
 
 impl Effect {
@@ -252,17 +213,13 @@ impl Effect {
 impl Display for Effect {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            // Effect::Chameleon => f.write_str("Chameleon"),
             Effect::CureBlightDisease => f.write_str("Cure Blight Disease"),
             Effect::CureCommonDisease => f.write_str("Cure Common Disease"),
-            // Effect::CureDisease => f.write_str("Cure Disease"),
-            // Effect::CureParalysis => f.write_str("Cure Paralysis"),
             Effect::CureParalyzation => f.write_str("Cure Paralyzation"),
             Effect::CurePoison => f.write_str("Cure Poison"),
             Effect::DetectAnimal => f.write_str("Detect Animal"),
             Effect::DetectEnchantment => f.write_str("Detect Enchantment"),
             Effect::DetectKey => f.write_str("Detect Key"),
-            // Effect::DetectLife => f.write_str("Detect Life"),
             Effect::Dispel => f.write_str("Dispel"),
             Effect::Feather => f.write_str("Feather"),
             Effect::FireShield => f.write_str("Fire Shield"),
@@ -287,10 +244,7 @@ impl Display for Effect {
             Effect::NightEye => f.write_str("Night Eye"),
             Effect::Recall => f.write_str("Recall"),
             Effect::Reflect => f.write_str("Reflect"),
-            // Effect::ReflectDamage => f.write_str("Reflect Damage"),
-            // Effect::ReflectSpell => f.write_str("Reflect Spell"),
             Effect::ResistCommonDisease => f.write_str("Resist Common Disease"),
-            // Effect::ResistDisease => f.write_str("Resist Disease"),
             Effect::ResistFire => f.write_str("Resist Fire"),
             Effect::ResistFrost => f.write_str("Resist Frost"),
             Effect::ResistMagicka => f.write_str("Resist Magicka"),
@@ -308,8 +262,6 @@ impl Display for Effect {
             Effect::RestoreHealth => f.write_str("Restore Health"),
             Effect::RestoreMagicka => f.write_str("Restore Magicka"),
             Effect::RestoreFatigue => f.write_str("Restore Fatigue"),
-            // Effect::Shield => f.write_str("Shield"),
-            // Effect::ShockShield => f.write_str("Shock Shield"),
             Effect::SpellAbsorption => f.write_str("Spell Absorption"),
             Effect::SwiftSwim => f.write_str("Swift Swim"),
             Effect::Telekinesis => f.write_str("Telekinesis"),
@@ -317,14 +269,7 @@ impl Display for Effect {
             Effect::WaterWalking => f.write_str("Water Walking"),
             Effect::Blind => f.write_str("Blind"),
             Effect::Burden => f.write_str("Burden"),
-            // Effect::DamageStrength => f.write_str("Damage Strength"),
             Effect::DamageIntelligence => f.write_str("Damage Intelligence"),
-            // Effect::DamageWillpower => f.write_str("Damage Willpower"),
-            // Effect::DamageAgility => f.write_str("Damage Agility"),
-            // Effect::DamageSpeed => f.write_str("Damage Speed"),
-            // Effect::DamageEndurance => f.write_str("Damage Endurance"),
-            // Effect::DamagePersonality => f.write_str("Damage Personality"),
-            // Effect::DamageLuck => f.write_str("Damage Luck"),
             Effect::DamageHealth => f.write_str("Damage Health"),
             Effect::DamageMagicka => f.write_str("Damage Magicka"),
             Effect::DamageFatigue => f.write_str("Damage Fatigue"),
@@ -340,12 +285,9 @@ impl Display for Effect {
             Effect::DrainHealth => f.write_str("Drain Health"),
             Effect::DrainMagicka => f.write_str("Drain Magicka"),
             Effect::DrainFatigue => f.write_str("Drain Fatigue"),
-            // Effect::FireDamage => f.write_str("Fire Damage"),
             Effect::FrostDamage => f.write_str("Frost Damage"),
             Effect::Paralyze => f.write_str("Paralyze"),
             Effect::Poison => f.write_str("Poison"),
-            // Effect::ShockDamage => f.write_str("Shock Damage"),
-            // Effect::Silence => f.write_str("Silence"),
             Effect::Vampirism => f.write_str("Vampirism"),
             Effect::WeaknessToFire => f.write_str("Weakness To Fire"),
             Effect::WeaknessToPoison => f.write_str("Weakness To Poison"),

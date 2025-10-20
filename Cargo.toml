@@ -2,7 +2,7 @@
 name = "morrowind_alchemy_tool"
 authors = ["Aaron Tabor"]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,7 +11,6 @@ strum = { version = "0.24.1", features = ["derive"] }
 serde = { version = "1.0.145", features = ["derive"] }
 serde_yaml = "0.9.13"
 itertools = "0.10.5"
-lazy_static = "1.4.0"
 strum_macros = "0.24.1"
 egui = "0.19.0"
 eframe = { version = "0.19.0", features = ["persistence"] }

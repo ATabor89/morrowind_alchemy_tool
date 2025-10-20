@@ -59,7 +59,7 @@ impl Widget for &mut Potion {
                     .iter()
                     .flatten()
                     .map(|ingredient| match ingredient.try_borrow() {
-                        Ok(ingredient) => ingredient.name.clone(), // TODO: Can we avoid cloning here?
+                        Ok(ingredient) => ingredient.name.clone(),
                         Err(_) => String::new(),
                     })
                     .collect::<Vec<_>>()
